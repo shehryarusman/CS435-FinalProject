@@ -40,6 +40,8 @@ function [bestH, bestMatchedPoints, stitchedImg] = findTransformationMatrixRANSA
 
     stitchedImg = stitchImages(img1, img2, bestH);
     visualizeKeypointMatches(img1, img2, matchedKeyPoints1(bestMatchedPoints, :), matchedKeyPoints2(bestMatchedPoints, :), 'Keypoint Correspondences');
+    figure('Name', 'Stitched Image', 'NumberTitle', 'off');
+    imshow(stitchedImg);
 end
 
 
