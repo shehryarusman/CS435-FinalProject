@@ -4,7 +4,7 @@ function [bestH, bestMatchedPoints, stitchedImg] = findTransformationMatrixRANSA
     maxInliers = 0;
     bestH = [];
     bestMatchedPoints = [];
-    N = 1000; % Number of RANSAC experiments
+    N = 10000; % Number of RANSAC experiments
     tolerance = 5; % Tolerance in pixels
 
     for i = 1:N
@@ -46,67 +46,76 @@ end
 
 
 function stitchedImg = stitchImages(img1, img2, H)
-    % Convert the homography matrix to a projective transformation object
-    tform = projective2d(H');
-    
-    % Determine the output limits for both images
-    [xlim, ylim] = outputLimits(tform, [1 size(img2, 2)], [1 size(img2, 1)]);
-    
-    % Find the minimum and maximum output limits 
-    xMin = min([1; xlim(:)]);
-    xMax = max([size(img1, 2); xlim(:)]);
-    yMin = min([1; ylim(:)]);
-    yMax = max([size(img1, 1); ylim(:)]);
-    
-    % Width and height of the panorama
-    width  = round(xMax - xMin);
-    height = round(yMax - yMin);
-    
-    % Initialize the "empty" panorama
-    panorama = zeros([height width 3], 'like', img1);
-    
-    % Create a 2d spatial reference object defining the size of the panorama
-    xLimits = [xMin xMax];
-    yLimits = [yMin yMax];
-    panoramaView = imref2d([height width], xLimits, yLimits);
-    
-    % Place the first image in the panorama
-    panorama = imwarp(img1, projective2d(eye(3)), 'OutputView', panoramaView);
-    
-    % Place the second image in the panorama
-    panorama = max(panorama, imwarp(img2, tform, 'OutputView', panoramaView));
-    
-    stitchedImg = panorama;
+    % Use computeHomography and calculateCanvasSize logic to determine the canvas dimensions and offsets
+    [canvasWidth, canvasHeight, xOffset, yOffset] = calculateCanvasSize(img1, img2, H);
+
+    % Initialize the canvas with determined dimensions
+    stitchedImg = zeros(canvasHeight, canvasWidth, 3, 'like', img1);
+
+    % Place img1 on the canvas considering the xOffset and yOffset
+    stitchedImg(yOffset + (1:size(img1, 1)), xOffset + (1:size(img1, 2)), :) = img1;
+
+    % Inverse of H for mapping points from the canvas to img2
+    H_inv = inv(H);
+
+    % Iterate over the canvas to fill in pixels from img2
+    for xCanvas = 1:canvasWidth
+        for yCanvas = 1:canvasHeight
+            % Map canvas coordinates back to img2 coordinates
+            nonBaseImgPos = H_inv * [(xCanvas - xOffset); (yCanvas - yOffset); 1];
+            nonBaseImgPos = nonBaseImgPos / nonBaseImgPos(3);
+
+            xNonBase = round(nonBaseImgPos(1));
+            yNonBase = round(nonBaseImgPos(2));
+
+            % If the mapped point is within img2 bounds, copy its pixel value to the canvas
+            if xNonBase >= 1 && xNonBase <= size(img2, 2) && yNonBase >= 1 && yNonBase <= size(img2, 1)
+                stitchedImg(yCanvas, xCanvas, :) = img2(yNonBase, xNonBase, :);
+            end
+        end
+    end
+end
+
+function [canvasWidth, canvasHeight, xOffset, yOffset] = calculateCanvasSize(img1, img2, H)
+    % This function should be similar to your initial logic for calculating the canvas size
+    % Calculate transformed corners of img2
+    [h1, w1, ~] = size(img1);
+    [h2, w2, ~] = size(img2);
+    cornersImg2 = [1, w2, w2, 1; 
+                   1, 1, h2, h2; 
+                   1, 1, 1, 1];
+    transformedCorners = H * cornersImg2;
+    transformedCorners = bsxfun(@rdivide, transformedCorners(1:2,:), transformedCorners(3,:));
+
+    % Determine canvas bounds and offsets
+    allX = [1, w1, transformedCorners(1,:)];
+    allY = [1, h1, transformedCorners(2,:)];
+    minX = floor(min(allX));
+    maxX = ceil(max(allX));
+    minY = floor(min(allY));
+    maxY = ceil(max(allY));
+
+    canvasWidth = round(maxX - minX + 1);
+    canvasHeight = round(maxY - minY + 1);
+    xOffset = round(1 - minX);
+    yOffset = round(1 - minY);
 end
 
 
 function visualizeKeypointMatches(img1, img2, matchedKeyPoints1, matchedKeyPoints2, titleStr)
-    % Combine images side-by-side
-    [height1, width1, ~] = size(img1);
-    [height2, width2, ~] = size(img2);
-    totalWidth = width1 + width2;
-    maxHeight = max(height1, height2);
-    combinedImage = zeros(maxHeight, totalWidth, 3, 'like', img1);
-    combinedImage(1:height1, 1:width1, :) = img1;
-    combinedImage(1:height2, width1+1:end, :) = img2;
-
-    % Adjust matchedKeyPoints2 for the combined image
-    matchedKeyPoints2Adjusted = matchedKeyPoints2;
-    matchedKeyPoints2Adjusted(:, 1) = matchedKeyPoints2(:, 1) + width1;
-
-    % Draw lines for matches
+    imshow([img1, img2]); % Show images side by side
+    hold on;
     for i = 1:size(matchedKeyPoints1, 1)
-        pt1 = matchedKeyPoints1(i, :);
-        pt2 = matchedKeyPoints2Adjusted(i, :);
-        combinedImage = insertShape(combinedImage, 'Line', [pt1 pt2], 'LineWidth', 2, 'Color', 'yellow');
+        % Adjust x-coordinate for keypoints in the second image
+        pt2Adjusted = matchedKeyPoints2(i, :);
+        pt2Adjusted(1) = pt2Adjusted(1) + size(img1, 2);
+        
+        % Draw line between matched keypoints
+        line([matchedKeyPoints1(i, 1), pt2Adjusted(1)], [matchedKeyPoints1(i, 2), pt2Adjusted(2)], 'Color', 'yellow');
     end
-
-    % Display the result
-    figure('Name', titleStr, 'NumberTitle', 'off');
-    imshow(combinedImage);
     title(titleStr);
+    hold off;
 end
-
 
 function H = computeHomography(srcPoints, dstPoints)
     A = [];
