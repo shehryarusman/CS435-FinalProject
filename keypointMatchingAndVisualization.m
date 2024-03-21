@@ -2,7 +2,7 @@ function [matchedKeyPoints1, matchedKeyPoints2] = keypointMatchingAndVisualizati
     img1 = imread(imgPath1);
     img2 = imread(imgPath2);
 
-    patchSize = 4;
+    patchSize = 5;
     descriptors1 = extractDescriptors(img1, keypoints1, patchSize);
     descriptors2 = extractDescriptors(img2, keypoints2, patchSize);
 

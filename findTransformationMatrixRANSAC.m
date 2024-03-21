@@ -11,7 +11,6 @@ function [bestH, bestMatchedPoints, stitchedImg] = findTransformationMatrixRANSA
         indices = randperm(size(matchedKeyPoints1, 1), 4);
         points1 = matchedKeyPoints1(indices, :);
         points2 = matchedKeyPoints2(indices, :);
-
         H = computeHomography(points1, points2);
 
         inliers = 0;
@@ -21,7 +20,7 @@ function [bestH, bestMatchedPoints, stitchedImg] = findTransformationMatrixRANSA
             point1 = [matchedKeyPoints1(j, 1:2), 1]';
             projectedPoint2 = H * point1;
             projectedPoint2 = projectedPoint2 / projectedPoint2(3);
-
+  
             point2 = [matchedKeyPoints2(j,1:2), 1]';
             distance = norm(projectedPoint2(1:2) - point2(1:2));
 
@@ -38,10 +37,12 @@ function [bestH, bestMatchedPoints, stitchedImg] = findTransformationMatrixRANSA
         end
     end
 
-    stitchedImg = stitchImages(img1, img2, bestH);
+    stitchedImg = stitchImages(img1, img2, inv(bestH));
     visualizeKeypointMatches(img1, img2, matchedKeyPoints1(bestMatchedPoints, :), matchedKeyPoints2(bestMatchedPoints, :), 'Keypoint Correspondences');
     figure('Name', 'Stitched Image', 'NumberTitle', 'off');
     imshow(stitchedImg);
+    % disp(bestH);
+    % disp(bestMatchedPoints);
 end
 
 
@@ -120,13 +121,13 @@ end
 function H = computeHomography(srcPoints, dstPoints)
     A = [];
     for i = 1:size(srcPoints, 1)
-        X = srcPoints(i, 1);
-        Y = srcPoints(i, 2);
-        x = dstPoints(i, 1);
-        y = dstPoints(i, 2);
-        A = [A; X, Y, 1, 0, 0, 0, -x*X, -x*Y, -x;
-                0, 0, 0, X, Y, 1, -y*X, -y*Y, -y];
+        x = srcPoints(i, 1);
+        y = srcPoints(i, 2);
+        xPrime = dstPoints(i, 1);
+        yPrime = dstPoints(i, 2);
+        A = [A; x, y, 1, 0, 0, 0, -x*xPrime, -y*xPrime, -xPrime];
+        A = [A; 0, 0, 0, x, y, 1, -x*yPrime, -y*yPrime, -yPrime];
     end
     [~, ~, V] = svd(A);
-    H = reshape(V(:, end), 3, 3)';
+    H = reshape(V(:,end), [3, 3])';
 end
