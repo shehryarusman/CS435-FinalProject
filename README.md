@@ -1,1 +1,3 @@
-## CS435-Final Project!
+To run the code, run main.m where at the top of main.m you will find the 2 filepaths of the images you're going to use. The script will take a minute or two to run on images <1MB, and it will output and save the figures I used for all parts of the writeup. All files will be outputted in your local directory based on the filename of the files you chose.
+
+There may be some duplicate figures created which we couldn't fix due to time constraints, but all figures displayed are included in the writeup pdf

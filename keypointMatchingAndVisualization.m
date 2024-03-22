@@ -74,9 +74,15 @@ function matches = matchKeypoints(descriptors1, descriptors2, maxDistance)
 end
 
 function visualizeMatches(img1, img2, keypoints1, keypoints2, titleStr)
-    figure('Name', titleStr, 'NumberTitle', 'off');
+    f = figure('Name', titleStr, 'NumberTitle', 'off');
     ax = axes;
     showMatchedFeatures(img1, img2, keypoints1(:,1:2), keypoints2(:,1:2), 'montage', 'Parent', ax);
     title(ax, titleStr);
-
+    
+    % Export the figure to a PNG file
+    if exist('exportgraphics', 'file')
+        exportgraphics(f, "keypoint_matching_visualization.png");
+    else
+        saveas(f, filename);
+    end
 end

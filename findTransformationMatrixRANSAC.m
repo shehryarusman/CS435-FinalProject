@@ -4,8 +4,8 @@ function [bestH, bestMatchedPoints, stitchedImg] = findTransformationMatrixRANSA
     maxInliers = 0;
     bestH = [];
     bestMatchedPoints = [];
-    N = 10000; % Number of RANSAC experiments
-    tolerance = 5; % Tolerance in pixels
+    N = 10000; % experiments
+    tolerance = 5; 
 
     for i = 1:N
         indices = randperm(size(matchedKeyPoints1, 1), 4);
@@ -39,37 +39,38 @@ function [bestH, bestMatchedPoints, stitchedImg] = findTransformationMatrixRANSA
 
     stitchedImg = stitchImages(img1, img2, inv(bestH));
     visualizeKeypointMatches(img1, img2, matchedKeyPoints1(bestMatchedPoints, :), matchedKeyPoints2(bestMatchedPoints, :), 'Keypoint Correspondences');
-    figure('Name', 'Stitched Image', 'NumberTitle', 'off');
+    f = figure('Name', 'Stitched Image', 'NumberTitle', 'off');
     imshow(stitchedImg);
     % disp(bestH);
     % disp(bestMatchedPoints);
+
+    [pathstr, name, ~] = fileparts(imgPath1);
+    allKeypointsPath = fullfile(pathstr, [name, '_all_keypoints_transformation_ransac.png']);
+    if exist('exportgraphics', 'file')
+        exportgraphics(f, allKeypointsPath);
+    else
+        saveas(mainFig, allKeypointsPath);
+    end
 end
 
 
 function stitchedImg = stitchImages(img1, img2, H)
-    % Use computeHomography and calculateCanvasSize logic to determine the canvas dimensions and offsets
     [canvasWidth, canvasHeight, xOffset, yOffset] = calculateCanvasSize(img1, img2, H);
 
-    % Initialize the canvas with determined dimensions
     stitchedImg = zeros(canvasHeight, canvasWidth, 3, 'like', img1);
 
-    % Place img1 on the canvas considering the xOffset and yOffset
     stitchedImg(yOffset + (1:size(img1, 1)), xOffset + (1:size(img1, 2)), :) = img1;
 
-    % Inverse of H for mapping points from the canvas to img2
     H_inv = inv(H);
 
-    % Iterate over the canvas to fill in pixels from img2
     for xCanvas = 1:canvasWidth
         for yCanvas = 1:canvasHeight
-            % Map canvas coordinates back to img2 coordinates
             nonBaseImgPos = H_inv * [(xCanvas - xOffset); (yCanvas - yOffset); 1];
             nonBaseImgPos = nonBaseImgPos / nonBaseImgPos(3);
 
             xNonBase = round(nonBaseImgPos(1));
             yNonBase = round(nonBaseImgPos(2));
 
-            % If the mapped point is within img2 bounds, copy its pixel value to the canvas
             if xNonBase >= 1 && xNonBase <= size(img2, 2) && yNonBase >= 1 && yNonBase <= size(img2, 1)
                 stitchedImg(yCanvas, xCanvas, :) = img2(yNonBase, xNonBase, :);
             end
@@ -85,7 +86,6 @@ function [canvasWidth, canvasHeight, xOffset, yOffset] = calculateCanvasSize(bas
     transformedCorners = H * corners;
     transformedCorners(1:2, :) = transformedCorners(1:2, :) ./ transformedCorners(3, :);
 
-    % Determine the size of the canvas based on the transformed corners and the base image size
     minX = min([1, transformedCorners(1,:)]);
     maxX = max([size(baseImg, 2), transformedCorners(1,:)]);
     minY = min([1, transformedCorners(2,:)]);
@@ -98,14 +98,12 @@ end
 
 
 function visualizeKeypointMatches(img1, img2, matchedKeyPoints1, matchedKeyPoints2, titleStr)
-    imshow([img1, img2]); % Show images side by side
+    imshow([img1, img2]);
     hold on;
     for i = 1:size(matchedKeyPoints1, 1)
-        % Adjust x-coordinate for keypoints in the second image
         pt2Adjusted = matchedKeyPoints2(i, :);
         pt2Adjusted(1) = pt2Adjusted(1) + size(img1, 2);
         
-        % Draw line between matched keypoints
         line([matchedKeyPoints1(i, 1), pt2Adjusted(1)], [matchedKeyPoints1(i, 2), pt2Adjusted(2)], 'Color', 'yellow');
     end
     title(titleStr);

@@ -20,19 +20,16 @@ function keypoints = findScaleSpaceExtremas(pyramids, imagePath)
         for m = 2:numScales-2
             for y = 2:size(DoGs{n, m}, 1)-1
                 for x = 2:size(DoGs{n, m}, 2)-1
-                    centerValue = DoGs{n, m}(y, x); % Current pixel value
+                    centerValue = DoGs{n, m}(y, x);
                     
-                    % Extract the 3x3x3 neighborhood including the center pixel
                     neighborhood3D = cat(3, DoGs{n, m-1}(y-1:y+1, x-1:x+1), DoGs{n, m}(y-1:y+1, x-1:x+1), DoGs{n, m+1}(y-1:y+1, x-1:x+1));
                     
-                    % Exclude the center pixel by setting it to NaN temporarily for comparison
                     neighborhood3D(2,2,2) = NaN;
                     
-                    % Check if centerValue is a maxima
                     isMaxima = centerValue > max(neighborhood3D(:), [], 'omitnan');
                     
                     if isMaxima
-                        locX = x * 2^(n-1); % Adjust location to original image's scale
+                        locX = x * 2^(n-1);
                         locY = y * 2^(n-1);
                         keypoints(keypointIndex, :) = [locX, locY, n, m, centerValue];
                         keypointIndex = keypointIndex + 1;
@@ -42,7 +39,7 @@ function keypoints = findScaleSpaceExtremas(pyramids, imagePath)
         end
     end
     
-    keypoints = keypoints(1:keypointIndex-1, :); % Trim to filled size
+    keypoints = keypoints(1:keypointIndex-1, :);
 
     disp("done");
     mainFig = figure;
@@ -51,8 +48,15 @@ function keypoints = findScaleSpaceExtremas(pyramids, imagePath)
     plot(keypoints(:,1), keypoints(:,2), 'ro', 'MarkerSize', 5);
     title('All Detected Keypoints');
     hold off;
+    
+    [pathstr, name, ~] = fileparts(imagePath);
+    allKeypointsPath = fullfile(pathstr, [name, '_all_keypoints.png']);
+    if exist('exportgraphics', 'file')
+        exportgraphics(mainFig, allKeypointsPath);
+    else
+        saveas(mainFig, allKeypointsPath);
+    end
 
-    % Apply filtering to remove unstable keypoints
     keypoints = filterKeypoints(keypoints, pyramids, contrastThreshold, patchSize);
 
     disp("done2");
@@ -62,6 +66,13 @@ function keypoints = findScaleSpaceExtremas(pyramids, imagePath)
     plot(keypoints(:,1), keypoints(:,2), 'ro', 'MarkerSize', 5);
     title('Stable Keypoints After Filtering');
     hold off;
+
+    stableKeypointsPath = fullfile(pathstr, [name, '_stable_keypoints.png']);
+    if exist('exportgraphics', 'file')
+        exportgraphics(keypointsFigure, stableKeypointsPath);
+    else
+        saveas(keypointsFigure, stableKeypointsPath);
+    end
 end
 
 function filteredKeypoints = filterKeypoints(keypoints, pyramids, contrastThreshold, patchSize)
@@ -81,14 +92,13 @@ function filteredKeypoints = filterKeypoints(keypoints, pyramids, contrastThresh
         
         borderThreshold = patchSize;
 
-        % Skip keypoints too close to the border
         if x <= borderThreshold || x >= size(baseImage, 2) - borderThreshold || ...
            y <= borderThreshold || y >= size(baseImage, 1) - borderThreshold
-            continue; % Too close to the border
+            continue; 
         end
 
         if edges(round(y), round(x))
-            continue; % Skip edge keypoints
+            continue;
         end
         
         octave = keypoints(i, 3);
@@ -96,32 +106,23 @@ function filteredKeypoints = filterKeypoints(keypoints, pyramids, contrastThresh
         locX = keypoints(i, 1);
         locY = keypoints(i, 2);
         
-        % Adjust locations to the scale of the image at the detected octave
-        % This adjustment is crucial if your keypoints locations (locX, locY) 
-        % are in terms of the original image size
         adjustedLocX = round(locX / 2^(octave - 1));
         adjustedLocY = round(locY / 2^(octave - 1));
         
-        % Using the image at the detected scale for contrast check
         scaleImg = pyramids{octave, scale}; 
 
-        % Ensure patch extraction does not exceed image boundaries
         xMin = max(1, adjustedLocX - patchSize);
         xMax = min(size(scaleImg, 2), adjustedLocX + patchSize);
         yMin = max(1, adjustedLocY - patchSize);
         yMax = min(size(scaleImg, 1), adjustedLocY + patchSize);
         
-        % Extract patch and calculate its standard deviation
         patch = scaleImg(yMin:yMax, xMin:xMax);
         if std2(patch) < contrastThreshold
-            % Skip low contrast keypoints
             continue;
         end
 
-        % Mark as stable if it passes both checks
         isStable(i) = true;
     end
     
-    % Keep only stable keypoints
     filteredKeypoints = keypoints(isStable, :);
 end
