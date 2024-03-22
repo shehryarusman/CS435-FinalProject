@@ -6,7 +6,7 @@ function keypoints = findScaleSpaceExtremas(pyramids, imagePath)
     estimatedKeypoints = 10000;
     keypoints = zeros(estimatedKeypoints, 5);
     contrastThreshold = 0.1;
-    patchSize = 4; 
+    patchSize = 5; 
     keypointIndex = 1;
 
     DoGs = cell(numOctaves, numScales-1);

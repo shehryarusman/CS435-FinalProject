@@ -6,7 +6,7 @@ function [matchedKeyPoints1, matchedKeyPoints2] = keypointMatchingAndVisualizati
     descriptors1 = extractDescriptors(img1, keypoints1, patchSize);
     descriptors2 = extractDescriptors(img2, keypoints2, patchSize);
 
-    maxDistance = 100;
+    maxDistance = 350;
     matches = matchKeypoints(descriptors1, descriptors2, maxDistance);
 
     if isempty(matches)

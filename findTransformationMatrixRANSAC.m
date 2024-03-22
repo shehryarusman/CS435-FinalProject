@@ -77,25 +77,19 @@ function stitchedImg = stitchImages(img1, img2, H)
     end
 end
 
-function [canvasWidth, canvasHeight, xOffset, yOffset] = calculateCanvasSize(img1, img2, H)
-    % This function should be similar to your initial logic for calculating the canvas size
-    % Calculate transformed corners of img2
-    [h1, w1, ~] = size(img1);
-    [h2, w2, ~] = size(img2);
-    cornersImg2 = [1, w2, w2, 1; 
-                   1, 1, h2, h2; 
-                   1, 1, 1, 1];
-    transformedCorners = H * cornersImg2;
-    transformedCorners = bsxfun(@rdivide, transformedCorners(1:2,:), transformedCorners(3,:));
+function [canvasWidth, canvasHeight, xOffset, yOffset] = calculateCanvasSize(baseImg, nonBaseImg, H)
+    [nonBaseHeight, nonBaseWidth, ~] = size(nonBaseImg);
+    corners = [1, nonBaseWidth, nonBaseWidth, 1;
+               1, 1, nonBaseHeight, nonBaseHeight;
+               1, 1, 1, 1];
+    transformedCorners = H * corners;
+    transformedCorners(1:2, :) = transformedCorners(1:2, :) ./ transformedCorners(3, :);
 
-    % Determine canvas bounds and offsets
-    allX = [1, w1, transformedCorners(1,:)];
-    allY = [1, h1, transformedCorners(2,:)];
-    minX = floor(min(allX));
-    maxX = ceil(max(allX));
-    minY = floor(min(allY));
-    maxY = ceil(max(allY));
-
+    % Determine the size of the canvas based on the transformed corners and the base image size
+    minX = min([1, transformedCorners(1,:)]);
+    maxX = max([size(baseImg, 2), transformedCorners(1,:)]);
+    minY = min([1, transformedCorners(2,:)]);
+    maxY = max([size(baseImg, 1), transformedCorners(2,:)]);
     canvasWidth = round(maxX - minX + 1);
     canvasHeight = round(maxY - minY + 1);
     xOffset = round(1 - minX);
